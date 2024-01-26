@@ -85,7 +85,6 @@ print(classification_report(yy,y_pred))
 # computing the exact accuracy_score
 train_accuracy=round(100*accuracy_score(yy,y_pred),2)
 print(f'The train accuracy score is {train_accuracy}%')
-The train accuracy score is 80.4%
 #reading the data csv and converting it into a dataframe
 df_test=pd.read_csv('./fashion-mnist_test.csv')
 #quick peek into the dataframe
