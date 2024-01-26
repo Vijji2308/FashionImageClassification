@@ -1,12 +1,3 @@
-'''
-Fashion-MNIST Classification
-
-Author: Priyanka Kasture | pkasture2010@gmail.com
-Language: Python 3.6
-Dataset: Fashion MNIST Database
-Environment: Spyder (Python 3.6)
-Important Dependancies: Tensorflow, Keras, Numpy, Matplotlib
-'''
 
 # Importing Tensorflow and Keras
 import tensorflow as tf
