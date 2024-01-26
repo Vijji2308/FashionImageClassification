@@ -1,243 +1,254 @@
 
-# Importing Tensorflow and Keras
-import tensorflow as tf
-from tensorflow import keras
-
-# Other Dependancies
+#pip install seaborn
+#importing libraries to perform EDA
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+warnings.filterwarnings('ignore')
+# reading the data csv and converting it into a dataframe
+df=pd.read_csv('./fashion-mnist_train.csv')
+# quick peek into the dataframe
+df.head()
+label	pixel1	pixel2	pixel3	pixel4	pixel5	pixel6	pixel7	pixel8	pixel9	...	pixel775	pixel776	pixel777	pixel778	pixel779	pixel780	pixel781	pixel782	pixel783	pixel784
+0	2	0	0	0	0	0	0	0	0	0	...	0	0	0	0	0	0	0	0	0	0
+1	9	0	0	0	0	0	0	0	0	0	...	0	0	0	0	0	0	0	0	0	0
+2	6	0	0	0	0	0	0	0	5	0	...	0	0	0	30	43	0	0	0	0	0
+3	0	0	0	0	1	2	0	0	0	0	...	3	0	0	0	0	1	0	0	0	0
+4	3	0	0	0	0	0	0	0	0	0	...	0	0	0	0	0	0	0	0	0	0
+5 rows × 785 columns
 
-# Our Dataset - Fashion MNIST (https://github.com/zalandoresearch/fashion-mnist)
-fashion_mnist = keras.datasets.fashion_mnist
+# checking the datatypes in this dataframe
+df.info()
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 60000 entries, 0 to 59999
+Columns: 785 entries, label to pixel784
+dtypes: int64(785)
+memory usage: 359.3 MB
+# checking for null-values
+df.isnull().sum().sum()
+0
+# checking the number of duplicated images
+df.duplicated().sum()
+43
+# dropping the above 43 duplicated images
+df.drop_duplicates(inplace=True)
+df.shape
+(59957, 785)
+df.label.unique()
+array([2, 9, 6, 0, 3, 4, 5, 8, 7, 1])
+# lets now analyze the labels and their corresponding numbers
+colors = sns.color_palette('mako_r')[1:3]
+plt.pie(x=df.groupby(['label']).count()['pixel1'],labels=df.groupby(['label']).count().index)
+([<matplotlib.patches.Wedge at 0x1648ccd30>,
+  <matplotlib.patches.Wedge at 0x164b7a250>,
+  <matplotlib.patches.Wedge at 0x164b7a730>,
+  <matplotlib.patches.Wedge at 0x164b7ac10>,
+  <matplotlib.patches.Wedge at 0x164b88130>,
+  <matplotlib.patches.Wedge at 0x164b88610>,
+  <matplotlib.patches.Wedge at 0x164b88af0>,
+  <matplotlib.patches.Wedge at 0x164b88fd0>,
+  <matplotlib.patches.Wedge at 0x164b924f0>,
+  <matplotlib.patches.Wedge at 0x164b929d0>],
+ [Text(1.0461211913794548, 0.3400447807963392, '0'),
+  Text(0.6463352588911015, 0.89008467749657, '1'),
+  Text(0.00014408221604796532, 1.0999999905637796, '2'),
+  Text(-0.6461487184761706, 0.8902201040257418, '3'),
+  Text(-1.046014245992434, 0.3403736141079097, '4'),
+  Text(-1.0462458356430757, -0.33966108313953514, '5'),
+  Text(-0.6468947722718439, -0.8896781179771476, '6'),
+  Text(-0.0007780850997711167, -1.0999997248106828, '7'),
+  Text(0.6461487184761701, -0.8902201040257423, '8'),
+  Text(1.0461212072980985, -0.3400447318238715, '9')])
 
-''' 
-Each example in the Fashion MNIST dataset is a 28x28 grayscale image.
-The images are associated with a label from 10 classes.
-Classes: t-shirts, trousers, pullovers, dresses, coats, sandals, shirts, sneakers, bags, and ankle boots.
-'''
+Data Preprocessing & Making Pipeline
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import cross_validate
+from sklearn.neighbors import KNeighborsClassifier
+# Creating X and y variables
+X=df.drop('label',axis=1)
+y=df.label
+xx=X[0:500]
+yy=y[0:500]
+xx.shape
+(500, 784)
+# instantiating normalizer object
+normalize=MinMaxScaler()
+test_error_rate=[]
+train_error_rate=[]
+for k in range(1,31):
+    # creating a KNN model with K
+    knn=KNeighborsClassifier(k)
+    # sequence of operations to be performed
+    operations=[('normalize',normalize),('knn',knn)]
+    # creating a pipeline
+    pipe=Pipeline(steps=operations)
+    # performing 5-fold cross validation using the pipeline and df
+    cross_dict=cross_validate(pipe,xx,yy,cv=5,scoring='accuracy', return_train_score=True)
+    # capturing train and test error rate for elbow graph
+    test_error_rate.append(cross_dict['test_score'].mean())
+    train_error_rate.append(cross_dict['train_score'].mean())
+test_error_rate
+[0.708,
+ 0.702,
+ 0.726,
+ 0.7060000000000001,
+ 0.726,
+ 0.724,
+ 0.7180000000000001,
+ 0.7140000000000001,
+ 0.712,
+ 0.708,
+ 0.7,
+ 0.708,
+ 0.7020000000000001,
+ 0.6899999999999998,
+ 0.686,
+ 0.6859999999999999,
+ 0.6839999999999999,
+ 0.6980000000000001,
+ 0.698,
+ 0.688,
+ 0.6819999999999999,
+ 0.674,
+ 0.672,
+ 0.668,
+ 0.6719999999999999,
+ 0.668,
+ 0.6679999999999999,
+ 0.666,
+ 0.6759999999999999,
+ 0.6759999999999999]
+train_error_rate=[1-acc for acc in train_error_rate]
+test_error_rate=[1-acc for acc in test_error_rate]
+plt.title('Elbow Graph')
+plt.xlabel('K')
+plt.ylabel('error_rate')
+sns.lineplot(x=range(1,31),y=test_error_rate, color='red');
 
-'''
-Loading the Data, and splitting it into training and testing sets.
-The train_images and train_labels arrays are the training set — that is, the data, the model uses to learn.
-The model is tested against the test set, the test_images, and test_labels arrays.
-'''
-(train_images, train_labels), (test_images, test_labels) = fashion_mnist.load_data()
+Building Final Model: knn
+# instantiating a knn object with K=5
+knn=KNeighborsClassifier(n_neighbors=5)
+# normalizing the predictors
+X_norm=normalize.fit_transform(xx)
+# fitting the transformed data on the above KNeighborsClassifier object
+knn.fit(X_norm,yy)
+KNeighborsClassifier()
+In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook.
+On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.
+# making predictions off of the dataset using the above KNN model
+y_pred=knn.predict(X_norm)
+y_pred
+array([8, 9, 4, 0, 3, 4, 4, 7, 4, 8, 0, 6, 9, 0, 2, 0, 9, 3, 0, 3, 8, 7,
+       6, 4, 0, 4, 4, 6, 7, 1, 5, 0, 7, 0, 3, 9, 3, 2, 2, 1, 6, 0, 9, 0,
+       0, 7, 6, 7, 7, 2, 5, 2, 2, 4, 1, 4, 9, 8, 0, 4, 5, 9, 6, 3, 5, 8,
+       5, 9, 8, 1, 2, 8, 1, 4, 2, 8, 3, 4, 2, 5, 3, 2, 6, 8, 1, 6, 7, 3,
+       6, 4, 6, 5, 0, 1, 7, 3, 7, 9, 2, 3, 8, 5, 0, 5, 3, 0, 8, 7, 6, 1,
+       0, 7, 2, 1, 9, 7, 6, 9, 3, 3, 2, 2, 0, 6, 1, 0, 3, 5, 9, 7, 7, 0,
+       3, 6, 7, 2, 4, 1, 3, 1, 0, 2, 3, 0, 3, 3, 6, 7, 9, 3, 7, 2, 6, 8,
+       8, 0, 7, 5, 6, 1, 9, 5, 3, 7, 0, 8, 9, 7, 7, 7, 0, 9, 2, 0, 0, 4,
+       1, 9, 4, 7, 2, 3, 0, 0, 8, 3, 5, 2, 3, 2, 6, 1, 7, 7, 5, 7, 7, 8,
+       0, 4, 3, 9, 7, 4, 5, 3, 2, 7, 6, 9, 6, 9, 2, 1, 2, 7, 3, 8, 3, 1,
+       3, 0, 0, 0, 3, 2, 8, 9, 2, 8, 8, 2, 6, 6, 8, 7, 0, 1, 3, 9, 5, 1,
+       9, 0, 7, 7, 7, 2, 3, 8, 2, 2, 5, 9, 3, 4, 9, 3, 1, 3, 0, 9, 1, 4,
+       9, 9, 4, 2, 3, 6, 1, 4, 9, 3, 7, 4, 6, 7, 0, 1, 1, 7, 2, 2, 1, 0,
+       3, 1, 5, 5, 8, 4, 7, 2, 3, 8, 4, 5, 5, 6, 3, 8, 9, 9, 4, 4, 0, 3,
+       4, 6, 1, 9, 8, 2, 7, 3, 0, 3, 9, 7, 6, 1, 7, 3, 2, 0, 6, 4, 5, 5,
+       2, 9, 8, 2, 8, 7, 6, 2, 9, 3, 0, 2, 3, 4, 6, 2, 2, 4, 0, 8, 8, 2,
+       6, 2, 4, 9, 2, 4, 7, 2, 2, 7, 8, 7, 4, 9, 3, 2, 2, 5, 4, 1, 1, 3,
+       3, 0, 3, 9, 6, 7, 7, 3, 5, 8, 9, 1, 0, 9, 0, 4, 5, 2, 0, 7, 3, 0,
+       7, 9, 3, 5, 0, 0, 2, 7, 2, 3, 2, 3, 2, 0, 3, 5, 6, 4, 9, 0, 6, 0,
+       3, 3, 1, 6, 8, 4, 9, 9, 0, 6, 3, 7, 7, 6, 8, 9, 5, 2, 2, 6, 9, 0,
+       3, 0, 0, 5, 2, 9, 7, 8, 7, 5, 6, 4, 8, 0, 3, 2, 2, 0, 0, 9, 2, 4,
+       4, 0, 3, 7, 0, 3, 9, 9, 8, 7, 0, 5, 0, 0, 7, 7, 3, 3, 7, 3, 2, 0,
+       3, 2, 0, 6, 0, 1, 9, 9, 7, 3, 0, 6, 1, 2, 3, 1])
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+# creating confusion matrix for this training set
+sns.heatmap(confusion_matrix(yy,y_pred), annot=True, cmap='mako', fmt='.5g')
+plt.xlabel('Predicted')
+plt.ylabel('Actuals')
+Text(33.0, 0.5, 'Actuals')
 
-# Shapes of the Training Set
-print("Training set (images) shape: {shape}".format(shape=train_images.shape))
-print("Training set (labels) shape: {shape}".format(shape=train_labels.shape))
+print(classification_report(yy,y_pred))
+              precision    recall  f1-score   support
 
-'''
-Shows that there are 60,000 images in the training set, with each image represented as 28 x 28 pixels.
-Likewise, there are 60,000 labels in the training set. Each label is an integer between 0 and 9.
-'''
+           0       0.74      0.96      0.83        52
+           1       0.97      0.89      0.93        38
+           2       0.59      0.82      0.69        45
+           3       0.81      0.88      0.84        65
+           4       0.80      0.65      0.72        51
+           5       0.91      0.71      0.79        41
+           6       0.71      0.48      0.57        61
+           7       0.82      0.96      0.88        52
+           8       0.97      0.80      0.88        45
+           9       0.90      0.94      0.92        50
 
-# Shapes of the Testing Set
-print("Test set (images) shape: {shape}".format(shape=test_images.shape))
-print("Test set (labels) shape: {shape}".format(shape=test_labels.shape))
+    accuracy                           0.80       500
+   macro avg       0.82      0.81      0.81       500
+weighted avg       0.81      0.80      0.80       500
 
-'''
-Shows that there are 10,000 images in the testing set, with each image represented as 28 x 28 pixels.
-Likewise, there are 10,000 labels in the testing set. Each label is an integer between 0 and 9.
-'''
+# computing the exact accuracy_score
+train_accuracy=round(100*accuracy_score(yy,y_pred),2)
+print(f'The train accuracy score is {train_accuracy}%')
+The train accuracy score is 80.4%
+#reading the data csv and converting it into a dataframe
+df_test=pd.read_csv('./fashion-mnist_test.csv')
+#quick peek into the dataframe
+df_test.head()
+label	pixel1	pixel2	pixel3	pixel4	pixel5	pixel6	pixel7	pixel8	pixel9	...	pixel775	pixel776	pixel777	pixel778	pixel779	pixel780	pixel781	pixel782	pixel783	pixel784
+0	0	0	0	0	0	0	0	0	9	8	...	103	87	56	0	0	0	0	0	0	0
+1	1	0	0	0	0	0	0	0	0	0	...	34	0	0	0	0	0	0	0	0	0
+2	2	0	0	0	0	0	0	14	53	99	...	0	0	0	0	63	53	31	0	0	0
+3	2	0	0	0	0	0	0	0	0	0	...	137	126	140	0	133	224	222	56	0	0
+4	3	0	0	0	0	0	0	0	0	0	...	0	0	0	0	0	0	0	0	0	0
+5 rows × 785 columns
 
+# checking the datatypes in this dataframe
+df_test.info()
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 10000 entries, 0 to 9999
+Columns: 785 entries, label to pixel784
+dtypes: int64(785)
+memory usage: 59.9 MB
+# checking for null-values
+df_test.isnull().sum().sum()
+0
+# splitting the testing set into predictor and target variables
+X_test=df_test.drop('label',axis=1)
+y_test=df_test.label
+# normalizing the predictors using the same scaling object. We're applying only transform h
+X_test_norm=normalize.transform(X_test)
+# making predictions off of the testing data using the same knn model
+y_test_pred=knn.predict(X_test_norm)
+y_test_pred
+array([0, 1, 2, ..., 8, 2, 6])
+# creating confusion matrix for this testing set
+sns.heatmap(confusion_matrix(y_test,y_test_pred), annot=True, cmap='mako', fmt='.5g')
+plt.xlabel('Predicted')
+plt.ylabel('Actuals');
 
-'''
-Each image is mapped to a single label.
-Since the class names are not included with the dataset, we store them here, to use later, when plotting the images.
-'''
-Categories = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
-'''
-Label 	Class
-0 	T-shirt/top
-1 	Trouser
-2 	Pullover
-3 	Dress
-4 	Coat
-5 	Sandal
-6 	Shirt
-7 	Sneaker
-8 	Bag
-9 	Ankle boot
-'''
+print(classification_report(y_test,y_test_pred))
+              precision    recall  f1-score   support
 
-''' Visualizing a random training image. '''
-plt.figure()
-plt.imshow(train_images[7])
-plt.colorbar()
-plt.grid(True)
+           0       0.62      0.82      0.71      1000
+           1       0.97      0.93      0.95      1000
+           2       0.54      0.66      0.59      1000
+           3       0.78      0.84      0.81      1000
+           4       0.62      0.59      0.61      1000
+           5       0.93      0.50      0.65      1000
+           6       0.45      0.31      0.36      1000
+           7       0.67      0.86      0.75      1000
+           8       0.97      0.76      0.85      1000
+           9       0.80      0.94      0.86      1000
 
-'''
-If you inspect this image, you will see that the pixel values fall in the range of 0 to 255.
-We will therefore scale these values to a range of 0 to 1 before feeding to the neural network model.
-For this, the image components are to be typecasted to 'float' type, and are to be divided by 255.
-'''
-train_images = train_images/255.0
-test_images = test_images/255.0
+    accuracy                           0.72     10000
+   macro avg       0.73      0.72      0.71     10000
+weighted avg       0.73      0.72      0.71     10000
 
-'''
-For verification that our image data has been correctly mapped to a label, we will
-display the first 25 images from the training set and display the class name below each image.
-'''
-plt.figure(figsize=(10,10))
-for i in range(25):
-    plt.subplot(5,5,i+1)
-    plt.xticks([])
-    plt.yticks([])
-    plt.imshow(train_images[i], cmap=plt.cm.binary)
-    plt.colorbar()
-    plt.grid(False)
-    plt.xlabel(Categories[train_labels[i]])
-
-    
-'''
-Now, we will build the model and set up the layers of the Neural Network.
-
-The 1st layer: tf.keras.layers.Flatten
-It transforms the format of the images from a 2d-array (of 28 by 28 pixels), to a 1d-array of 28 * 28 = 784 pixels.
-
-The 2nd and 3rd layers: tf.keras.layers.Dense
-They are densely-connected, or fully-connected, neural layers. 
-The first Dense layer has 128 nodes (or neurons). 
-The second (and last) layer is a 10-node softmax layer — this returns an array of 10 probability scores that sum to 1. 
-Each node contains a score that indicates the probability that the current image belongs to one of the 10 classes.
-'''
-model = keras.Sequential([
-    keras.layers.Flatten(input_shape=(28, 28)),
-    keras.layers.Dense(128, activation=tf.nn.relu),
-    keras.layers.Dense(10, activation=tf.nn.softmax)
-])
-    
-
-'''
-Now we will be compiling the Model.
-
-Optimizer — This is how the model is updated, based on the data it sees and its loss function.
-
-Loss function — This measures how accurate the model is during training. 
-We want to minimize this function to "steer" the model in the right direction.
-
-Metrics — Used to monitor the training and testing steps. The following example uses accuracy, the fraction of the images that are correctly classified.
-
-'''
-model.compile(optimizer=tf.train.AdamOptimizer(), 
-              loss='sparse_categorical_crossentropy',
-              metrics=['accuracy'])
-
-
-''' 
-To start training, we call the model.fit() method.
-We want the model to "fit" to the training data.
-'''
-model.fit(train_images, train_labels, epochs=10)
-# Training Accuracy is between 90% - 92%
-
-''' Now, we will compare how the model performs on the test dataset. '''
-test_loss, test_acc = model.evaluate(test_images, test_labels)
-print('Test accuracy:', test_acc)
-# Testing Accuracy is between 86% - 89%
-'''
-The accuracy on the test dataset is a little less than the accuracy on the training dataset. 
-That means the model is overfitting.
-'''
-
-''' 
-Now, we will be feeding test images.
-The neural network is expected to correctly predict the corresponding label.
-'''
-predictions = model.predict(test_images)
-
-''' Checking the prediction for the 0th (1st) test image. '''
-predictions[0]
-
-''' 
-The output is an array of values (probabilities) that sum up to 1. 
-The first value in the array is ~ 2.59e-11.
-It implies that there is 2.59e-11 probability that the object in the test image belongs to 1st Category.
-The actual label/category of the test image is the one with the hightest probability.
-Using the argmax function we find out the maximum value (probability) in the array.
-'''
-np.argmax(predictions[0])
-''' 
-The predicted output is 9.
-That means, our model has predicted that this particular test image belongs to 9th Category.
-'''
-'''
-To verify whether the object in the test image really belongs to 9th Category, we check it's test label.
-'''
-test_labels[0]
-'''
-The output is 9.
-That is ====> Predicted Outut of the Model = Actual Output Stored in the Testing Dataset.
-This implies that our model has correctly predicted the category of the object in the test image.
-'''
-
-''' To plot the image, the predicted labels, and the actual labels, two functions are written as follows. '''
-# Plotting the Image, the predicted label, the actual label
-def plot_image(i, predictions_array, true_label, img):
-  predictions_array, true_label, img = predictions_array[i], true_label[i], img[i]
-  plt.grid(False)
-  plt.xticks([])
-  plt.yticks([])
-  plt.imshow(img, cmap=plt.cm.binary)
-  predicted_label = np.argmax(predictions_array)
-  if predicted_label == true_label:
-    color = 'blue'
-  else:
-    color = 'red'
-  
-  plt.xlabel("{} {:2.0f}% ({})".format(Categories[predicted_label],
-                                100*np.max(predictions_array),
-                                Categories[true_label]),
-                                color=color)
-# Plotting the Graph
-def plot_value_array(i, predictions_array, true_label):
-  predictions_array, true_label = predictions_array[i], true_label[i]
-  plt.grid(False)
-  plt.xticks([])
-  plt.yticks([])
-  thisplot = plt.bar(range(10), predictions_array, color="#777777")
-  plt.ylim([0, 1]) 
-  predicted_label = np.argmax(predictions_array)
+# computing the exact accuracy_score
+test_accuracy=round(100*accuracy_score(y_test,y_test_pred),2)
+print(f'The test accuracy score is {test_accuracy}%')
+The test accuracy score is 72.04%
  
-  thisplot[predicted_label].set_color('red')
-  thisplot[true_label].set_color('blue')
-
-''' 
-Now we plot the first X test images, their predicted label, and the true label.
-Correct predictions are plotted in blue, incorrect predictions in red.
-The model is accurate to a good extent, and therefore, more of blue will be seen.
-'''
-num_rows = 5
-num_cols = 3
-num_images = num_rows*num_cols
-plt.figure(figsize=(2*2*num_cols, 2*num_rows))
-for i in range(num_images):
-  plt.subplot(num_rows, 2*num_cols, 2*i+1)
-  plot_image(i, predictions, test_labels, test_images)
-  plt.subplot(num_rows, 2*num_cols, 2*i+2)
-  plot_value_array(i, predictions, test_labels)
- 
-    
-"""
-Here, we predicted the labels of a batch of images.
-But, we can also use the trained model to make a prediction about a single image. 
-********** IT IS OPTIONAL **********
-The code for the same is as follows:
-
-# Grab an image from the test dataset
-img = test_images[0]
-print(img.shape)
-
-# Add the image to a batch where it's the only member.
-img = (np.expand_dims(img,0))
-print(img.shape)
-
-predictions_single = model.predict(img)
-print(predictions_single)
-
-plot_value_array(0, predictions_single, test_labels)
-_ = plt.xticks(range(10), Categories, rotation=45)
-
-np.argmax(predictions_single[0])
-"""
