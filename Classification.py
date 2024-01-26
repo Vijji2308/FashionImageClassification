@@ -60,7 +60,7 @@ plt.xlabel('K')
 plt.ylabel('error_rate')
 sns.lineplot(x=range(1,31),y=test_error_rate, color='red');
 
-Building Final Model: knn
+
 # instantiating a knn object with K=5
 knn=KNeighborsClassifier(n_neighbors=5)
 # normalizing the predictors
